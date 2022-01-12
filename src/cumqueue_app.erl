@@ -5,6 +5,10 @@
 -export([stop/1, start/2]).
 
 start(_, _) ->
+    ok = application:start(cowlib),
+    ok = application:start(ranch),
+    ok = application:start(cowboy),
+
     producer_registrar_sup:start_link(),
     producer_sup:start_link(),
     consumer_registrar_sup:start_link(),
