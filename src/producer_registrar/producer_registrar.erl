@@ -18,14 +18,6 @@ start_link() ->
   gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 init([]) ->
-  Dispatch = cowboy_router:compile([
-    {'_', [
-      {"/", hello_handler, []}
-    ]}
-  ]),
-  {ok, _} = cowboy:start_clear(http, [{port, 8080}], #{
-    env => #{dispatch => Dispatch}
-  }),
   {ok, #producer_registrar_state{}}.
 
 handle_call(_Request, _From, State = #producer_registrar_state{}) ->
@@ -38,7 +30,6 @@ handle_info(_Info, State = #producer_registrar_state{}) ->
   {noreply, State}.
 
 terminate(_Reason, _State = #producer_registrar_state{}) ->
-  cowboy:stop_listener(http),
   ok.
 
 code_change(_OldVsn, State = #producer_registrar_state{}, _Extra) ->
