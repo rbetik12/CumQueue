@@ -8,16 +8,16 @@
 
 -behaviour(supervisor).
 
--export([start_link/0, init/1]).
+-export([start/0, init/1]).
 
-start_link() ->
+start() ->
   supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
   SupFlags = #{},
   ChildSpecs = [
     #{id => consumer_registrar,
-      start => {consumer_registrar, start_link, []},
+      start => {consumer_registrar, start, []},
       shutdown => brutal_kill}
   ],
   {ok, {SupFlags, ChildSpecs}}.

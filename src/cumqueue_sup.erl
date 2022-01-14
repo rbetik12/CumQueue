@@ -10,13 +10,13 @@
 -behavior(supervisor).
 
 %% API
--export([start_link/0]).
+-export([start/0]).
 
 %% supervisor
 -export([init/1]).
 
--spec start_link() -> {ok, pid()}.
-start_link() ->
+-spec start() -> {ok, pid()}.
+start() ->
   supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 %%supervisor

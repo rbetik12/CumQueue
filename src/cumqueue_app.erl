@@ -9,11 +9,11 @@ start(_, _) ->
     ok = application:start(ranch),
     ok = application:start(cowboy),
 
-    producer_registrar_sup:start_link(),
-    producer_sup:start_link(),
-    consumer_registrar_sup:start_link(),
-    consumer_sup:start_link(),
-    topic_sup:start_link(),
+    producer_registrar_sup:start(),
+    producer_sup:start(),
+    consumer_registrar_sup:start(),
+    consumer_sup:start(),
+    topic_sup:start(),
 
     start_http_server(8080).
 
@@ -30,7 +30,7 @@ start_http_server(Port) ->
     {ok, _} = cowboy:start_clear(http, [{port, Port}], #{
         env => #{dispatch => Dispatch}
     }),
-    cumqueue_sup:start_link().
+    cumqueue_sup:start().
 
 stop(_State) ->
     ok = cowboy:stop_listener(http).

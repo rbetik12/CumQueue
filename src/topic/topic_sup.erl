@@ -8,16 +8,20 @@
 
 -behaviour(supervisor).
 
--export([start_link/0, init/1]).
+-export([start/0, init/1]).
 
-start_link() ->
+start() ->
   supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
-  SupFlags = #{},
+  SupFlags = #{
+    strategy => simple_one_for_one,
+    intensity => 10,
+    period => 1000
+  },
   ChildSpecs = [
     #{id => topic,
-      start => {topic, start_link, []},
+      start => {topic, start, [self()]},
       shutdown => brutal_kill}
   ],
   {ok, {SupFlags, ChildSpecs}}.
