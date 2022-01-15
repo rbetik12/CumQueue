@@ -16,7 +16,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {topic_pid = lcnt:pid(node(), 0, 0)}).
+-record(state, {topic_pid = lcnt:pid(node(), 0, 0), id_counter = atomics:new(1, [{signed, false}])}).
 
 %%%===================================================================
 %%% Spawning and gen_server implementation
@@ -36,8 +36,9 @@ init([TopicPid]) ->
   lager:log(debug, self(), "Started producer for topic with pid: ~p~n", [TopicPid]),
   {ok, #state{topic_pid = TopicPid}}.
 
-handle_call({new_message, #message{} = Message}, _From, State = #state{topic_pid = TopicPid}) ->
-  topic:push_message(TopicPid, Message),
+handle_call({new_message, #message{topic = TopicName, message_payload = MessagePayload}}, _From,
+    State = #state{topic_pid = TopicPid, id_counter = IdCounter}) ->
+  topic:push_message(TopicPid, #message{id = atomics:add_get(IdCounter, 1, 1), topic = TopicName, message_payload = MessagePayload}),
   {reply, ok, State};
 
 handle_call(stop, _From, Tab) ->
