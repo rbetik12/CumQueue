@@ -25,7 +25,7 @@ start_http_server(Port) ->
             {"/consumerRegistration", consumer_register_controller, []},
             {"/consumer/[:someDataIfYouNeed]", consumer_controller, []},
             {"/producerRegistration", producer_register_controller, []},
-            {"/producer/[:someDataIfYouNeed]", producer_controller, []},
+            {"/producer/[...]", producer_controller, []},
             {"/topic", topic_controller, []}
         ]}
     ]),

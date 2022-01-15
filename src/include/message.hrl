@@ -1,0 +1,2 @@
+-record(message_header, {id = 0, topic = ""}).
+-record(message, {message_header = #message_header{}, message_payload = <<>>}).
