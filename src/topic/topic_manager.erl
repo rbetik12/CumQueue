@@ -40,9 +40,9 @@ init([]) ->
 
 
 handle_call({get_topic_pid, Name}, _From, #state{topics = Topics} = State) ->
-    case maps:get(Name, Topics) of
-        {badkey, Key} ->
-            {reply, {notfound, {Key}}, State};
+    case maps:get(Name, Topics, badkey) of
+        badkey ->
+            {reply, {notfound, {Name}}, State};
         TopicPid ->
             {reply, {ok, {TopicPid}}, State}
     end;
@@ -56,7 +56,7 @@ handle_call({new_topic, Name}, _From, #state{topics = Topics}) ->
         type => worker,
         modules => [topic]
     },
-    TopicPid = supervisor:start_child(topic_sup, ChildSpecs),
+    {ok, TopicPid} = supervisor:start_child(topic_sup, ChildSpecs),
     NewState = #state{topics = maps:put(Name, TopicPid, Topics)},
     {reply, {ok, {TopicPid}}, NewState};
 

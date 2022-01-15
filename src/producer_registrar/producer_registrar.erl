@@ -8,7 +8,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(producer_registrar_state, {}).
+-record(producer_registrar_state, {producers = maps:new()}).
 
 %%%===================================================================
 %%% Spawning and gen_server implementation
@@ -28,11 +28,23 @@ stop() ->
 init([]) ->
   {ok, #producer_registrar_state{}}.
 
-handle_call({register_producer, ProducerName}, _From, State = #producer_registrar_state{}) ->
-  lager:log(debug, self(), "Registring producer with name: ~p...~n", [ProducerName]),
-  %TODO Spawn topic and return its meta info to caller
-  lager:log(debug, self(), "Successfully registred producer with name: ~p...~n", [ProducerName]),
-  {reply, ok, State};
+handle_call({register_producer, TopicName}, _From, State = #producer_registrar_state{producers = Producers}) ->
+  lager:log(debug, self(), "Registring producer with name: ~p...~n", [TopicName]),
+  %TODO We can do that in separate thread
+  case maps:get(TopicName, Producers, badkey) of
+    badkey ->
+      case topic_manager:get_topic_pid(TopicName) of
+        {notfound, {_}} ->
+          topic_manager:new_topic(TopicName),
+          {ok, {TopicPid}} = topic_manager:get_topic_pid(TopicName),
+          start_producer(TopicPid, TopicName, Producers);
+        {ok, {TopicPid}} ->
+          start_producer(TopicPid, TopicName, Producers)
+      end;
+    ProducerPid ->
+      lager:log(debug, self(), "Producer for topic: ~p already exists~n", [TopicName]),
+      {reply, {ok, {ProducerPid}}, #producer_registrar_state{producers = Producers}}
+  end;
 
 handle_call(stop, _From, Tab) ->
   {stop, normal, stopped, Tab}.
@@ -52,3 +64,9 @@ code_change(_OldVsn, State = #producer_registrar_state{}, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+start_producer(TopicPid, TopicName, Producers) ->
+  ProducerPid = supervisor:start_child(producer_sup, [TopicPid]),
+  Producers1 = maps:put(TopicName, ProducerPid, Producers),
+  lager:log(debug, self(), "Successfully created producer for topic ~p~n", [TopicName]),
+  {reply, {ok, {ProducerPid}}, #producer_registrar_state{producers = Producers1}}.

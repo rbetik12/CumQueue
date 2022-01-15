@@ -8,27 +8,27 @@
 
 -behaviour(gen_server).
 
--export([start/0, stop/0]).
+-export([start/1, stop/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
   code_change/3]).
 
 -define(SERVER, ?MODULE).
 
--record(producer_state, {}).
+-record(producer_state, {topic_pid = lcnt:pid(node(), 0, 0)}).
 
 %%%===================================================================
 %%% Spawning and gen_server implementation
 %%%===================================================================
 
-start() ->
-  io:format("Hello from producer!~n"),
-  gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+start(TopicPid) ->
+  gen_server:start_link({local, ?SERVER}, ?MODULE, [TopicPid], []).
 
 stop() ->
   gen_server:call(?MODULE, stop).
 
-init([]) ->
-  {ok, #producer_state{}}.
+init([TopicPid]) ->
+  lager:log(debug, self(), "Started producer for topic with pid: ~p~n", [TopicPid]),
+  {ok, #producer_state{topic_pid = TopicPid}}.
 
 handle_call(_Request, _From, State = #producer_state{}) ->
   {reply, ok, State};
