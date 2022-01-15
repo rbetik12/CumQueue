@@ -1,3 +1,4 @@
+{"1.2.0",
 [{<<"cowboy">>,
   {git,"git://github.com/ninenines/cowboy.git",
        {ref,"04ca4c5d31a92d4d3de087bbd7d6021dc4a6d409"}},
@@ -6,9 +7,14 @@
   {git,"https://github.com/ninenines/cowlib",
        {ref,"e9448e5628c8c1d9083223ff973af8de31a566d1"}},
   1},
+ {<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.9">>},1},
  {<<"jsone">>,
   {git,"git://github.com/sile/jsone.git",
        {ref,"5b8a8581743e5975f1b4062f768cff1e75ee39ef"}},
+  0},
+ {<<"lager">>,
+  {git,"git://github.com/erlang-lager/lager.git",
+       {ref,"c5447d2d85a0d446d41a79bffe0a6a66bd50c901"}},
   0},
  {<<"misultin">>,
   {git,"git://github.com/ostinelli/misultin.git",
@@ -17,4 +23,10 @@
  {<<"ranch">>,
   {git,"https://github.com/ninenines/ranch",
        {ref,"a692f44567034dacf5efcaa24a24183788594eb7"}},
-  1}].
+  1}]}.
+[
+{pkg_hash,[
+ {<<"goldrush">>, <<"F06E5D5F1277DA5C413E84D5A2924174182FB108DABB39D5EC548B27424CD106">>}]},
+{pkg_hash_ext,[
+ {<<"goldrush">>, <<"99CB4128CFFCB3227581E5D4D803D5413FA643F4EB96523F77D9E6937D994CEB">>}]}
+].

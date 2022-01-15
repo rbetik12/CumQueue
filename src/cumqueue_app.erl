@@ -8,6 +8,8 @@ start(_, _) ->
     ok = application:start(cowlib),
     ok = application:start(ranch),
     ok = application:start(cowboy),
+    lager:start(),
+    lager:set_loglevel(lager_console_backend, debug),
 
     producer_registrar_sup:start(),
     producer_sup:start(),

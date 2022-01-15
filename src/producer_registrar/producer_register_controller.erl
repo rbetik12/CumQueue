@@ -15,15 +15,12 @@
   content_types_accepted/2, post_json/2]).
 
 init(Req0, Opts) ->
-  io:format("init~n"),
   {cowboy_rest, Req0, Opts}.
 
 allowed_methods(Req, State) ->
-  io:format("methods~n"),
-  {[<<"POST">>, <<"GET">>], Req, State}.
+  {[<<"POST">>, <<"PUT">>], Req, State}.
 
 content_types_accepted(Req, State) ->
-  io:format("types~n"),
   case cowboy_req:method(Req) of
     <<"POST">> ->
       Accepted = {[{<<"application/json">>, post_json}], Req, State};
@@ -33,8 +30,12 @@ content_types_accepted(Req, State) ->
   Accepted.
 
 post_json(Req, State) ->
-  io:format("post_json: ~n"),
   {ok, Data, Req1} = cowboy_req:read_body(Req),
-  Req2 = cowboy_req:set_resp_body(Data, Req1),
-  Req3 = cowboy_req:reply(200, Req2),
+
+  Json = jsone:decode(Data),
+  TopicName = binary_to_list(maps:get(<<"topicName">>, Json)),
+  %TODO Handle timeout
+  producer_registrar:register_producer(TopicName),
+
+  Req3 = cowboy_req:reply(200, Req1),
   {stop, Req3, State}.
