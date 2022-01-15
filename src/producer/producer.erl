@@ -16,7 +16,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(producer_state, {topic_pid = lcnt:pid(node(), 0, 0)}).
+-record(state, {topic_pid = lcnt:pid(node(), 0, 0)}).
 
 %%%===================================================================
 %%% Spawning and gen_server implementation
@@ -34,25 +34,25 @@ new_message(#message{message_header = #message_header{topic = TopicName}} = Mess
 
 init([TopicPid]) ->
   lager:log(debug, self(), "Started producer for topic with pid: ~p~n", [TopicPid]),
-  {ok, #producer_state{topic_pid = TopicPid}}.
+  {ok, #state{topic_pid = TopicPid}}.
 
-handle_call({new_message, #message{} = Message}, _From, State = #producer_state{topic_pid = TopicPid}) ->
+handle_call({new_message, #message{} = Message}, _From, State = #state{topic_pid = TopicPid}) ->
   topic:push_message(TopicPid, Message),
   {reply, ok, State};
 
 handle_call(stop, _From, Tab) ->
   {stop, normal, stopped, Tab}.
 
-handle_cast(_Request, State = #producer_state{}) ->
+handle_cast(_Request, State = #state{}) ->
   {noreply, State}.
 
-handle_info(_Info, State = #producer_state{}) ->
+handle_info(_Info, State = #state{}) ->
   {noreply, State}.
 
-terminate(_Reason, _State = #producer_state{}) ->
+terminate(_Reason, _State = #state{}) ->
   ok.
 
-code_change(_OldVsn, State = #producer_state{}, _Extra) ->
+code_change(_OldVsn, State = #state{}, _Extra) ->
   {ok, State}.
 
 %%%===================================================================

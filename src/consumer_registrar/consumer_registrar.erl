@@ -19,7 +19,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(consumer_registrar_state, {consumers = maps:new(), groups = maps:new()}).
+-record(state, {consumers = maps:new(), groups = maps:new()}).
 
 %%%===================================================================
 %%% Spawning and gen_server implementation
@@ -36,11 +36,11 @@ stop() ->
   gen_server:call(?MODULE, stop).
 
 init([]) ->
-{ok, #consumer_registrar_state{}}.
+{ok, #state{}}.
 
 handle_call({register_consumer, #{callback_url := Url, topic := Topic, group := Group} = ConsumerDataMap},
     _From,
-    State = #consumer_registrar_state{consumers = Consumers, groups = Groups}) ->
+    State = #state{consumers = Consumers, groups = Groups}) ->
   case maps:get(Url, Consumers, badkey) of
     %% Consumer does not exists
     badkey ->
@@ -53,7 +53,7 @@ handle_call({register_consumer, #{callback_url := Url, topic := Topic, group := 
         %% No such topic
         {notfound, _} ->
           topic_manager:new_topic(Topic),
-          {reply, {ok, {empty_topic}}, State#consumer_registrar_state{
+          {reply, {ok, {empty_topic}}, State#state{
             consumers = Consumers#{Url => Topic}
           }};
         %% Found topic
@@ -63,7 +63,7 @@ handle_call({register_consumer, #{callback_url := Url, topic := Topic, group := 
             0 ->
               %%Messages = topic_manager:get_all(Topic),
               {Messages, MsgId} = not_implemented, not_implemented,
-              {reply, {ok, {Messages}}, State#consumer_registrar_state{
+              {reply, {ok, {Messages}}, State#state{
                 consumers = Consumers#{Url => Topic},
                 groups = Groups#{Group => MsgId}}
               };
@@ -71,7 +71,7 @@ handle_call({register_consumer, #{callback_url := Url, topic := Topic, group := 
             GroupId ->
               %%Messages = topic_manager:get_from(Topic, GroupId),
               {Messages, MsgId} = not_implemented, not_implemented,
-              {reply, {ok, {Messages}}, State#consumer_registrar_state{
+              {reply, {ok, {Messages}}, State#state{
                 consumers = Consumers#{Url => Topic},
                 groups = Groups#{Group := MsgId}}
               }
@@ -82,21 +82,21 @@ handle_call({register_consumer, #{callback_url := Url, topic := Topic, group := 
       lager:log(debug, self(), "Consumer with URL ~p for topic: ~p", [Url, Topic]),
       {reply, {ok, {already_exists}}, State}
   end;
-handle_call(_Request, _From, State = #consumer_registrar_state{}) ->
+handle_call(_Request, _From, State = #state{}) ->
   {reply, ok, State};
 handle_call(stop, _From, Tab) ->
   {stop, normal, stopped, Tab}.
 
-handle_cast(_Request, State = #consumer_registrar_state{}) ->
+handle_cast(_Request, State = #state{}) ->
   {noreply, State}.
 
-handle_info(_Info, State = #consumer_registrar_state{}) ->
+handle_info(_Info, State = #state{}) ->
   {noreply, State}.
 
-terminate(_Reason, _State = #consumer_registrar_state{}) ->
+terminate(_Reason, _State = #state{}) ->
   ok.
 
-code_change(_OldVsn, State = #consumer_registrar_state{}, _Extra) ->
+code_change(_OldVsn, State = #state{}, _Extra) ->
   {ok, State}.
 
 %%%===================================================================

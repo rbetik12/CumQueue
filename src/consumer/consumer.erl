@@ -16,7 +16,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(consumer_state, {url, message = #message{}}).
+-record(state, {url, message = #message{}}).
 
 %% NOTE Пример отправки сообщения через consumer
 %%{ok, CPID} = consumer:start_link("http://localhost:9000", #message{}),
@@ -36,9 +36,9 @@ stop() ->
 
 init([Url, #message{} = Message]) ->
   lager:log(debug, self(), "Started consumer for url: ~p~n", [Url]),
-  {ok, #consumer_state{url = Url, message = Message}}.
+  {ok, #state{url = Url, message = Message}}.
 
-handle_call(send_message, _From, State = #consumer_state{url = Url, message = Message}) ->
+handle_call(send_message, _From, State = #state{url = Url, message = Message}) ->
   Body = jsone:encode(Message),
   Request = {Url, [], "application/json", Body},
   lager:log(debug, self(), "Sending request for url ~p with body ~p~n", [Url, Body]),
@@ -47,21 +47,21 @@ handle_call(send_message, _From, State = #consumer_state{url = Url, message = Me
     {ok, Result} -> lager:log(debug, self(), "Sended request to ~p, result: ~p", [Url, Result])
   end,
   {reply, ok, State};
-handle_call(_Request, _From, State = #consumer_state{}) ->
+handle_call(_Request, _From, State = #state{}) ->
   {reply, ok, State};
 handle_call(stop, _From, Tab) ->
   {stop, normal, stopped, Tab}.
 
-handle_cast(_Request, State = #consumer_state{}) ->
+handle_cast(_Request, State = #state{}) ->
   {noreply, State}.
 
-handle_info(_Info, State = #consumer_state{}) ->
+handle_info(_Info, State = #state{}) ->
   {noreply, State}.
 
-terminate(_Reason, _State = #consumer_state{}) ->
+terminate(_Reason, _State = #state{}) ->
   ok.
 
-code_change(_OldVsn, State = #consumer_state{}, _Extra) ->
+code_change(_OldVsn, State = #state{}, _Extra) ->
   {ok, State}.
 
 %%%===================================================================

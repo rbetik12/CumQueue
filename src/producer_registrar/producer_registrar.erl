@@ -8,7 +8,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(producer_registrar_state, {producers = maps:new()}).
+-record(state, {producers = maps:new()}).
 
 %%%===================================================================
 %%% Spawning and gen_server implementation
@@ -30,9 +30,9 @@ stop() ->
   gen_server:call(?MODULE, stop).
 
 init([]) ->
-  {ok, #producer_registrar_state{}}.
+  {ok, #state{}}.
 
-handle_call({register_producer, TopicName}, _From, State = #producer_registrar_state{producers = Producers}) ->
+handle_call({register_producer, TopicName}, _From, State = #state{producers = Producers}) ->
   lager:log(debug, self(), "Registring producer with name: ~p...~n", [TopicName]),
   %TODO We can do that in separate thread
   case maps:get(TopicName, Producers, badkey) of
@@ -47,10 +47,10 @@ handle_call({register_producer, TopicName}, _From, State = #producer_registrar_s
       end;
     ProducerPid ->
       lager:log(debug, self(), "Producer for topic: ~p already exists~n", [TopicName]),
-      {reply, {ok, {ProducerPid}}, #producer_registrar_state{producers = Producers}}
+      {reply, {ok, {ProducerPid}}, #state{producers = Producers}}
   end;
 
-handle_call({get_producer_pid, TopicName}, _From, State = #producer_registrar_state{producers = Producers}) ->
+handle_call({get_producer_pid, TopicName}, _From, State = #state{producers = Producers}) ->
   case maps:get(TopicName, Producers, badkey) of
     badkey ->
       {reply, {notfound, TopicName}, State};
@@ -61,16 +61,16 @@ handle_call({get_producer_pid, TopicName}, _From, State = #producer_registrar_st
 handle_call(stop, _From, Tab) ->
   {stop, normal, stopped, Tab}.
 
-handle_cast(_Request, State = #producer_registrar_state{}) ->
+handle_cast(_Request, State = #state{}) ->
   {noreply, State}.
 
-handle_info(_Info, State = #producer_registrar_state{}) ->
+handle_info(_Info, State = #state{}) ->
   {noreply, State}.
 
-terminate(_Reason, _State = #producer_registrar_state{}) ->
+terminate(_Reason, _State = #state{}) ->
   ok.
 
-code_change(_OldVsn, State = #producer_registrar_state{}, _Extra) ->
+code_change(_OldVsn, State = #state{}, _Extra) ->
   {ok, State}.
 
 %%%===================================================================
@@ -81,4 +81,4 @@ start_producer(TopicPid, TopicName, Producers) ->
   {ok, ProducerPid} = supervisor:start_child(producer_sup, [TopicPid]),
   Producers1 = maps:put(TopicName, ProducerPid, Producers),
   lager:log(debug, self(), "Successfully created producer for topic ~p~n", [TopicName]),
-  {reply, {ok, {ProducerPid}}, #producer_registrar_state{producers = Producers1}}.
+  {reply, {ok, {ProducerPid}}, #state{producers = Producers1}}.
