@@ -29,7 +29,7 @@ new_topic(Name) ->
 %%%===================================================================
 
 start() ->
-    io:format("Hello from topic_manager~n"),
+    lager:log(debug, self(), "Started topic manager", []),
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 stop() ->
@@ -37,7 +37,6 @@ stop() ->
 
 init([]) ->
     {ok, #state{}}.
-
 
 handle_call({get_topic_pid, Name}, _From, #state{topics = Topics} = State) ->
     case maps:get(Name, Topics, badkey) of
@@ -48,33 +47,21 @@ handle_call({get_topic_pid, Name}, _From, #state{topics = Topics} = State) ->
     end;
 
 handle_call({new_topic, Name}, _From, #state{topics = Topics}) ->
-    ChildSpecs = #{
-        id => topic,
-        start => {topic, start, []},
-        restart => transient,
-        shutdown => 2000,
-        type => worker,
-        modules => [topic]
-    },
-    {ok, TopicPid} = supervisor:start_child(topic_sup, ChildSpecs),
+    {ok, TopicPid} = supervisor:start_child(topic_sup, [Name]),
     NewState = #state{topics = maps:put(Name, TopicPid, Topics)},
     {reply, {ok, {TopicPid}}, NewState};
 
 handle_call(stop, _From, State) ->
     {stop, normal, stopped, State}.
 
-
 handle_cast(_Request, #state{} = State) ->
     {noreply, State}.
-
 
 handle_info(_Info, #state{} = State) ->
     {noreply, State}.
 
-
 terminate(_Reason, #state{}) ->
     ok.
-
 
 code_change(_OldVsn, #state{} = State, _Extra) ->
     {ok, State}.

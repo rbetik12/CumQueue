@@ -35,6 +35,7 @@ content_types_accepted(Req, State) ->
 
 post_json(Req, State) ->
   ReqURI = cowboy_req:uri(Req),
+  %TODO use cowboy:parse_qs
   case binary_to_list(lists:nth(2, ReqURI)) of
     "/producer/newMessage" ->
       %TODO We can call new_message in separate thread

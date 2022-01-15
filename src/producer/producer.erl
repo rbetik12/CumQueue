@@ -23,7 +23,7 @@
 %%%===================================================================
 
 start(TopicPid) ->
-  gen_server:start_link({local, ?SERVER}, ?MODULE, [TopicPid], []).
+  gen_server:start_link(?MODULE, [TopicPid], []).
 
 stop() ->
   gen_server:call(?MODULE, stop).

@@ -16,6 +16,7 @@ start(_, _) ->
     consumer_registrar_sup:start(),
     consumer_sup:start(),
     topic_sup:start(),
+    topic_manager_sup:start(),
 
     start_http_server(8080).
 

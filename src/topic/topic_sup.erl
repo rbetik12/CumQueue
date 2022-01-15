@@ -15,16 +15,16 @@ start() ->
 
 init([]) ->
   SupFlags = #{
-    strategy => one_for_one,
+    strategy => simple_one_for_one,
     intensity => 10,
     period => 1000
   },
   ChildSpecs = [
-    #{id => topic_manager,
-      start => {topic_manager, start, []},
+    #{id => topic,
+      start => {topic, start, []},
       restart => transient,
       shutdown => 2000,
       type => worker,
-      modules => [topic_manager]}
+      modules => [topic]}
   ],
   {ok, {SupFlags, ChildSpecs}}.

@@ -8,7 +8,7 @@
 
 -behaviour(gen_server).
 
--export([start/0, stop/0, get_messages/2, push_message/2]).
+-export([start/1, stop/0, get_messages/2, push_message/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
   code_change/3]).
 
@@ -19,9 +19,9 @@
 %%% Spawning and gen_server implementation
 %%%===================================================================
 
-start() ->
-  io:format("Hello from topic!~n", []),
-  gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+start(Name) ->
+  lager:log(debug, self(), "Started topic with name ~p~n", [Name]),
+  gen_server:start_link(?MODULE, [Name], []).
 
 stop() ->
   gen_server:call(?MODULE, stop).
@@ -38,8 +38,8 @@ get_messages(0, _, Res) ->
 get_messages(Amount, [Message | Queue], Res) ->
   get_messages(Amount - 1, Queue, [Message | Res]).
 
-init([]) ->
-  {ok, #state{}}.
+init([Name]) ->
+  {ok, #state{name = Name}}.
 
 handle_call({get, MessageAmount}, _From, #state{queue = Queue} = State) ->
   Messages = get_messages(MessageAmount, Queue),
