@@ -27,6 +27,7 @@ stop() ->
   gen_server:call(?MODULE, stop).
 
 push_message(Pid, Message) ->
+  %TODO Timeout can be here (also pid inconsistency)
   gen_server:call(Pid, {push, Message}).
 
 get_messages(Amount, Queue) ->

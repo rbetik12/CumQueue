@@ -37,7 +37,7 @@ init([TopicPid]) ->
   {ok, #producer_state{topic_pid = TopicPid}}.
 
 handle_call({new_message, #message{} = Message}, _From, State = #producer_state{topic_pid = TopicPid}) ->
-  lager:log(debug, self(), "~p~n", [Message]),
+  topic:push_message(TopicPid, Message),
   {reply, ok, State};
 
 handle_call(stop, _From, Tab) ->
