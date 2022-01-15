@@ -55,7 +55,7 @@ get_message(Data) ->
   Json = jsone:decode(Data),
   TopicName = binary_to_list(maps:get(<<"topicName">>, Json)),
   #message{
-    message_header = #message_header{topic = TopicName},
+    topic = TopicName,
     message_payload = maps:get(<<"data">>, Json)
   }.
 

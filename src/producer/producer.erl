@@ -28,7 +28,7 @@ start(TopicPid) ->
 stop() ->
   gen_server:call(?MODULE, stop).
 
-new_message(#message{message_header = #message_header{topic = TopicName}} = Message) ->
+new_message(#message{topic = TopicName} = Message) ->
   {ok, Pid} = producer_registrar:get_producer_pid(TopicName),
   gen_server:call(Pid, {new_message, Message}).
 

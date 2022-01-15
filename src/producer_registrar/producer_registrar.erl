@@ -32,7 +32,7 @@ stop() ->
 init([]) ->
   {ok, #state{}}.
 
-handle_call({register_producer, TopicName}, _From, State = #state{producers = Producers}) ->
+handle_call({register_producer, TopicName}, _From, #state{producers = Producers}) ->
   lager:log(debug, self(), "Registring producer with name: ~p...~n", [TopicName]),
   %TODO We can do that in separate thread
   case maps:get(TopicName, Producers, badkey) of
