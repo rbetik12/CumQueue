@@ -45,6 +45,7 @@ new_message(Req, State) ->
   {ok, Data, Req1} = cowboy_req:read_body(Req),
 
   Message = get_message(Data),
+  producer:new_message(Message),
 
   Req2 = cowboy_req:reply(200, Req1),
   {stop, Req2, State}.

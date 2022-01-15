@@ -8,7 +8,7 @@
 
 -behaviour(gen_server).
 
--export([start/0, stop/0, get_messages/2]).
+-export([start/0, stop/0, get_messages/2, push_message/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
   code_change/3]).
 
@@ -26,9 +26,20 @@ start() ->
 stop() ->
   gen_server:call(?MODULE, stop).
 
+push_message(Pid, Message) ->
+  gen_server:call(Pid, {push, Message}).
+
+get_messages(Amount, Queue) ->
+  get_messages(Amount, Queue, []).
+
+get_messages(0, _, Res) ->
+  Res;
+
+get_messages(Amount, [Message | Queue], Res) ->
+  get_messages(Amount - 1, Queue, [Message | Res]).
+
 init([]) ->
   {ok, #state{}}.
-
 
 handle_call({get, MessageAmount}, _From, #state{queue = Queue} = State) ->
   Messages = get_messages(MessageAmount, Queue),
@@ -63,11 +74,3 @@ code_change(_OldVsn, #state{} = State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-get_messages(Amount, Queue) ->
-  get_messages(Amount, Queue, []).
-
-get_messages(0, _, Res) ->
-  Res;
-get_messages(Amount, [Message | Queue], Res) ->
-  get_messages(Amount - 1, Queue, [Message | Res]).

@@ -2,7 +2,7 @@
 
 -behaviour(gen_server).
 
--export([start/0, stop/0, register_producer/1]).
+-export([start/0, stop/0, register_producer/1, get_producer_pid/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
   code_change/3]).
 
@@ -17,6 +17,10 @@
 register_producer(ProducerName) ->
   %TODO Timeout can be get here
   gen_server:call(producer_registrar, {register_producer, ProducerName}).
+
+get_producer_pid(TopicName) ->
+  %TODO Timeout can be get here
+  gen_server:call(producer_registrar, {get_producer_pid, TopicName}).
 
 start() ->
   lager:log(info, self(), "Started producer_reg!~n"),
@@ -46,6 +50,14 @@ handle_call({register_producer, TopicName}, _From, State = #producer_registrar_s
       {reply, {ok, {ProducerPid}}, #producer_registrar_state{producers = Producers}}
   end;
 
+handle_call({get_producer_pid, TopicName}, _From, State = #producer_registrar_state{producers = Producers}) ->
+  case maps:get(TopicName, Producers, badkey) of
+    badkey ->
+      {reply, {notfound, TopicName}, State};
+    ProducerPid ->
+      {reply, {ok, ProducerPid}, State}
+  end;
+
 handle_call(stop, _From, Tab) ->
   {stop, normal, stopped, Tab}.
 
@@ -66,7 +78,7 @@ code_change(_OldVsn, State = #producer_registrar_state{}, _Extra) ->
 %%%===================================================================
 
 start_producer(TopicPid, TopicName, Producers) ->
-  ProducerPid = supervisor:start_child(producer_sup, [TopicPid]),
+  {ok, ProducerPid} = supervisor:start_child(producer_sup, [TopicPid]),
   Producers1 = maps:put(TopicName, ProducerPid, Producers),
   lager:log(debug, self(), "Successfully created producer for topic ~p~n", [TopicName]),
   {reply, {ok, {ProducerPid}}, #producer_registrar_state{producers = Producers1}}.
