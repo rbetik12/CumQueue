@@ -8,47 +8,66 @@
 
 -behaviour(gen_server).
 
--export([start/1, stop/0]).
+-export([start/0, stop/0, get_messages/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
   code_change/3]).
 
--define(SERVER, ?MODULE).
+-record(state, {name, consumers = [], queue = [], queueSize = 0}).
 
--record(topic_state, {consumers = [], queue = []}).
 
 %%%===================================================================
 %%% Spawning and gen_server implementation
 %%%===================================================================
 
-start(ProducerPID) ->
-  io:format("Hello from topic!~n"),
-  gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+start() ->
+  io:format("Hello from topic!~n", []),
+  gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 stop() ->
   gen_server:call(?MODULE, stop).
 
 init([]) ->
-  {ok, #topic_state{}}.
+  {ok, #state{}}.
 
-handle_call(_Request, _From, State = #topic_state{}) ->
-  {reply, ok, State};
 
-handle_call(stop, _From, Tab) ->
-  {stop, normal, stopped, Tab}.
+handle_call({get, MessageAmount}, _From, #state{queue = Queue} = State) ->
+  Messages = get_messages(MessageAmount, Queue),
+  {reply, {ok, {Messages}}, State};
 
-handle_cast(_Request, State = #topic_state{}) ->
+handle_call({push, Message}, _From, #state{queue = Queue, queueSize = QueueSize}) ->
+  NewState = #state{
+    queue = [Message | Queue],
+    queueSize = QueueSize + 1
+  },
+  {reply, ok, NewState};
+
+handle_call(stop, _From, State) ->
+  {stop, normal, stopped, State}.
+
+
+handle_cast(_Request, #state{} = State) ->
   {noreply, State}.
 
-handle_info(_Info, State = #topic_state{}) ->
+
+handle_info(_Info, #state{} = State) ->
   {noreply, State}.
 
-terminate(_Reason, _State = #topic_state{}) ->
+
+terminate(_Reason, #state{}) ->
   ok.
 
-code_change(_OldVsn, State = #topic_state{}, _Extra) ->
+
+code_change(_OldVsn, #state{} = State, _Extra) ->
   {ok, State}.
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
 
+get_messages(Amount, Queue) ->
+  get_messages(Amount, Queue, []).
+
+get_messages(0, _, Res) ->
+  Res;
+get_messages(Amount, [Message | Queue], Res) ->
+  get_messages(Amount - 1, Queue, [Message | Res]).

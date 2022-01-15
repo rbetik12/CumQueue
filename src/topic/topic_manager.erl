@@ -15,12 +15,18 @@
 -record(state, {topics = #{}}).
 
 %%%===================================================================
-%%% Spawning and gen_server implementation
+%%% API
 %%%===================================================================
 
-get_topic_pid(Name) -> gen_server:call(topic_manager, {get_topic_pid, Name}).
+get_topic_pid(Name) ->
+    gen_server:call(topic_manager, {get_topic_pid, Name}).
 
-new_topic(Name) -> gen_server:call(topic_manager, {new_topic, Name}).
+new_topic(Name) ->
+    gen_server:call(topic_manager, {new_topic, Name}).
+
+%%%===================================================================
+%%% Spawning and gen_server implementation
+%%%===================================================================
 
 start() ->
     io:format("Hello from topic_manager~n"),
@@ -29,14 +35,17 @@ start() ->
 stop() ->
     gen_server:call(?MODULE, stop).
 
-
 init([]) ->
     {ok, #state{}}.
 
 
 handle_call({get_topic_pid, Name}, _From, #state{topics = Topics} = State) ->
-    TopicPid = maps:get(Name, Topics),
-    {reply, {ok, TopicPid}, State};
+    case maps:get(Name, Topics) of
+        {badkey, Key} ->
+            {reply, {notfound, {Key}}, State};
+        TopicPid ->
+            {reply, {ok, {TopicPid}}, State}
+    end;
 
 handle_call({new_topic, Name}, _From, #state{topics = Topics}) ->
     ChildSpecs = #{
@@ -49,7 +58,7 @@ handle_call({new_topic, Name}, _From, #state{topics = Topics}) ->
     },
     TopicPid = supervisor:start_child(topic_sup, ChildSpecs),
     NewState = #state{topics = maps:put(Name, TopicPid, Topics)},
-    {reply, {ok, TopicPid}, NewState};
+    {reply, {ok, {TopicPid}}, NewState};
 
 handle_call(stop, _From, State) ->
     {stop, normal, stopped, State}.
