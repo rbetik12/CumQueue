@@ -24,7 +24,6 @@ start_http_server(Port) ->
     Dispatch = cowboy_router:compile([
         {'_', [
             {"/consumerRegistration", consumer_register_controller, []},
-            {"/consumer/[:someDataIfYouNeed]", consumer_controller, []},
             {"/producerRegistration", producer_register_controller, []},
             {"/producer/[...]", producer_controller, []},
             {"/topic", topic_controller, []}
