@@ -18,7 +18,7 @@
 %%% Spawning and gen_server implementation
 %%%===================================================================
 
-get_topic_name(Name) -> gen_server:call(topic_manager, {get_topic_pid, Name}).
+get_topic_pid(Name) -> gen_server:call(topic_manager, {get_topic_pid, Name}).
 
 new_topic(Name) -> gen_server:call(topic_manager, {new_topic, Name}).
 
