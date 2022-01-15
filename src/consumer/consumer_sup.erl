@@ -14,10 +14,14 @@ start() ->
   supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
-  SupFlags = #{},
+  SupFlags = #{
+    strategy => simple_one_for_one,
+    intensity => 10,
+    period => 1000
+  },
   ChildSpecs = [
-    #{id => consumer,
-      start => {consumer, start, []},
+    #{id => producer,
+      start => {producer, start, []},
       shutdown => brutal_kill}
   ],
   {ok, {SupFlags, ChildSpecs}}.

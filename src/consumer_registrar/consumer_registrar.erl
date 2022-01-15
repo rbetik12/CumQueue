@@ -25,9 +25,6 @@
 %%% Spawning and gen_server implementation
 %%%===================================================================
 
-%%register_consumer(#{callback_url := Url, topic := Topic, group := Group} = ConsumerData) ->
-%%  .
-
 register_consumer(ConsumerDataMap) when is_map(ConsumerDataMap) ->
   gen_server:call(consumer_registrar, {register_consumer, ConsumerDataMap}).
 
