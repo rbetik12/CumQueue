@@ -13,10 +13,15 @@
 -include("include/test_env.hrl").
 
 setup_test_env() ->
-  cumqueue_app:start_and_setup_deps(),
-  producer_registrar_sup:start(testing),
-  producer_sup:start(),
-  cumqueue_app:start_http_server(8080).
+  application:start(cumqueue).
+
+teardown_test_env() ->
+  application:stop(cumqueue).
+
+register_producer(TopicName) ->
+  Body = lists:concat(["{\"topicName\":\"", TopicName, "\"}"]),
+  Request = {string:concat(?CUMKA_HOST, "/producerRegistration"), [], "application/json", Body},
+  {ok, {{_, 200, _}, _, _}} = httpc:request(post, Request, [], []).
 
 register_one_producer_test() ->
   setup_test_env(),
@@ -42,6 +47,13 @@ try_to_write_message_without_registering_producer_test() ->
   Body = "{\"topicName\":\"topic doesn't exist\", \"data\":\"kek\"}",
   Request = {string:concat(?CUMKA_HOST, "/producer/newMessage"), [], "application/json", Body},
   {ok, {{_, AnswerCode, ReasonPhrase}, _, _}} = httpc:request(post, Request, [], []),
-  io:format("~p~n", [ReasonPhrase]),
   ?assert(AnswerCode == 400),
   ?assert(ReasonPhrase == "Bad Request").
+
+send_message_to_producer_normal_test() ->
+  register_producer("send message topic"),
+  Body = "{\"topicName\":\"send message topic\", \"data\":\"some data\"}",
+  Request = {string:concat(?CUMKA_HOST, "/producer/newMessage"), [], "application/json", Body},
+  {ok, {{_, AnswerCode, ReasonPhrase}, _, _}} = httpc:request(post, Request, [], []),
+  ?assert(AnswerCode == 200),
+  ?assert(ReasonPhrase == "OK").

@@ -34,10 +34,12 @@ content_types_accepted(Req, State) ->
   Accepted.
 
 post_json(Req, State) ->
-  ReqURI = cowboy_req:uri(Req),
-  %TODO use cowboy:parse_qs
-  case binary_to_list(lists:nth(2, ReqURI)) of
-    "/producer/newMessage" ->
+  ReqPath = lists:foldl(
+    fun(Item, Path) ->
+      string:concat(Path, binary_to_list(Item))
+    end, "", cowboy_req:path_info(Req)),
+  case ReqPath of
+    "newMessage" ->
       %TODO We can call new_message in separate thread
       new_message(Req, State)
   end.

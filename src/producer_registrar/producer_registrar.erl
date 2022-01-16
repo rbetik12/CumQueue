@@ -37,14 +37,8 @@ handle_call({register_producer, TopicName}, _From, #state{producers = Producers,
   %TODO We can do that in separate thread
   case maps:get(TopicName, Producers, badkey) of
     badkey ->
-      case topic_manager:get_topic_pid(TopicName) of
-        {notfound, {_}} ->
-          topic_manager:new_topic(TopicName),
-          {ok, {TopicPid}} = topic_manager:get_topic_pid(TopicName),
-          start_producer(TopicPid, TopicName, Producers, production);
-        {ok, {TopicPid}} ->
-          start_producer(TopicPid, TopicName, Producers, production)
-      end;
+      {_, {TopicPid}} = topic_manager:new_topic(TopicName),
+      start_producer(TopicPid, TopicName, Producers, production);
     ProducerPid ->
       %TODO Change answer code for case when producer already exists
       lager:log(debug, self(), "Producer for topic: ~p already exists~n", [TopicName]),
