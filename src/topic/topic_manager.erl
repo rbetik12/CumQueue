@@ -9,7 +9,7 @@
 -behaviour(gen_server).
 
 -export([start/0, stop/0]).
--export([new_topic/1, new_consumer/3]).
+-export([new_topic/1, new_consumer/3, update_topic_pid/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
     code_change/3]).
 
@@ -28,6 +28,9 @@ new_topic(Name) ->
 new_consumer(TopicName, ConsumerPid, ReplyType) ->
     gen_server:call(?MODULE, {new_consumer, TopicName, ConsumerPid, ReplyType}).
 
+update_topic_pid(TopicName, NewTopicPid) ->
+    gen_server:cast(?MODULE, {update_topic_pid, TopicName, NewTopicPid}).
+
 %%%===================================================================
 %%% Spawning and gen_server implementation
 %%%===================================================================
@@ -42,12 +45,12 @@ stop() ->
 init([]) ->
     {ok, #state{}}.
 
+% new topic entity adds/updates in topic:init
 handle_call({new_topic, TopicName}, _From, #state{topics = Topics} = State) ->
     case maps:find(TopicName, Topics) of
         error ->
             {ok, TopicPid} = supervisor:start_child(topic_sup, [TopicName]),
-            NewState = State#state{topics = maps:put(TopicName, TopicPid, Topics)},
-            {reply, {ok, {TopicPid}}, NewState};
+            {reply, {ok, {TopicPid}}, State};
         {ok, TopicPid} ->
             {reply, {already_exists, {TopicPid}}, State}
     end;
@@ -64,8 +67,9 @@ handle_call({new_consumer, TopicName, ConsumerPid, ReplyType}, _From, #state{top
 handle_call(stop, _From, State) ->
     {stop, normal, stopped, State}.
 
-handle_cast(_Request, #state{} = State) ->
-    {noreply, State}.
+handle_cast({update_topic_pid, TopicName, NewTopicPid}, #state{topics = Topics} = State) ->
+    NewState = State#state{topics = maps:put(TopicName, NewTopicPid, Topics)},
+    {noreply, NewState}.
 
 handle_info(_Info, #state{} = State) ->
     {noreply, State}.

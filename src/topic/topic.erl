@@ -9,6 +9,7 @@
 -behaviour(gen_server).
 
 -export([start/1, stop/0]).
+-export([test_push_message/1]).
 -export([push_message/2, new_consumer/3, broadcast/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
   code_change/3]).
@@ -16,6 +17,10 @@
 -include("../include/message.hrl").
 
 -record(state, {name, consumers, queue = [], queueSize = 0}).
+
+test_push_message(TopicPid) ->
+  Message = #message{id = 1, topic = testname, message_payload = <<"some message">>},
+  push_message(TopicPid, Message).
 
 %%%===================================================================
 %%% API
@@ -34,14 +39,17 @@ new_consumer(TopicPid, ConsumerPid, ReplyType) ->
 %%% Spawning and gen_server implementation
 %%%===================================================================
 
-start(Name) ->
-  lager:log(debug, self(), "Started topic with name ~p~n", [Name]),
-  gen_server:start_link(?MODULE, [Name], []).
+start(TopicName) ->
+  lager:log(debug, self(), "Started topic with name ~p~n", [TopicName]),
+  open_dets(TopicName, TopicName ++ ".ets", bag),
+  gen_server:start_link(?MODULE, [TopicName], []).
 
 stop() ->
+  % TODO close dets
   gen_server:call(?MODULE, stop).
 
 init([Name]) ->
+  topic_manager:update_topic_pid(Name, self()),
   {ok, #state{name = Name, consumers = sets:new()}}.
 
 
@@ -64,7 +72,7 @@ handle_call({new_consumer, ConsumerPid, ReplyType}, _From, #state{consumers = Co
     true ->
       case ReplyType of
         {all} ->
-          Messages = get_all_messages(State);
+          Messages = get_all_messages(Queue);
         {by_offset, OffsetId} ->
           Messages = get_messages_by_offset(Queue, OffsetId)
       end,
@@ -76,18 +84,18 @@ handle_call({new_consumer, ConsumerPid, ReplyType}, _From, #state{consumers = Co
 handle_call(stop, _From, State) ->
   {stop, normal, stopped, State}.
 
-
-handle_cast(_Request, #state{} = State) ->
-  {noreply, State}.
-
+handle_cast({restore_state}, #state{name = TopicName} = State) ->
+  NewState = State#state{
+    consumers = sets:from_list(proplists:get_all_values(consumer, dets:lookup(TopicName, consumer))),
+    queue = dets:lookup(TopicName, message)
+  },
+  {noreply, NewState}.
 
 handle_info(_Info, #state{} = State) ->
   {noreply, State}.
 
-
 terminate(_Reason, #state{}) ->
   ok.
-
 
 code_change(_OldVsn, #state{} = State, _Extra) ->
   {ok, State}.
@@ -95,6 +103,27 @@ code_change(_OldVsn, #state{} = State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+open_dets(TabName, File, TabType) ->
+  IsExists = filelib:is_file(File),
+  case dets:open_file(TabName, [{file, File}, {type, TabType}]) of
+    {ok, TabName} ->
+      case IsExists of
+        true ->
+          restore_state();
+        false ->
+          init_dets(TabName)
+      end;
+    {error,Reason} ->
+      lager:log(error, self(), "Error opening dets table. Reason: ~p~n", [Reason]),
+      exit(eDetsOpen)
+  end.
+
+restore_state() ->
+  gen_server:cast(self(), {restore_state}).
+
+init_dets(TabName) ->
+  dets:insert(TabName, {topic_name, TabName}).
 
 get_all_messages(Queue) ->
   Queue.
