@@ -26,7 +26,7 @@ init(_) ->
   lager:log(info, self(), "try listening to localhost:5678"),
   {ok, LSock} = gen_tcp:listen(5678, [binary, {packet, 0}, {active, false}]),
   lager:log(info, self(), "listening to localhost:5678"),
-  tcp_loop(LSock),
+  spawn_link(fun () -> tcp_loop(LSock) end),
   {ok, #state{}}.
 
 tcp_loop(LSock) ->
