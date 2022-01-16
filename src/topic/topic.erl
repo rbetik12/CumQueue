@@ -21,12 +21,12 @@
 %%% API
 %%%===================================================================
 
-% Returns
+% Returns {ok, {}}
 push_message(TopicPid, Message) ->
   %TODO Timeout can be here (also pid inconsistency)
   gen_server:call(TopicPid, {push_message, Message}).
 
-% Returns
+% Returns {ok, {Messages, LastMessageId}}
 new_consumer(TopicPid, ConsumerPid, ReplyType) ->
   gen_server:call(TopicPid, {new_consumer, ConsumerPid, ReplyType}).
 
