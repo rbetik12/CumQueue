@@ -37,3 +37,11 @@ register_two_producers_test() ->
   ?assert(ReasonPhrase == "OK"),
   ?assert(AnswerCode == AnswerCode1),
   ?assert(ReasonPhrase == ReasonPhrase1).
+
+try_to_write_message_without_registering_producer_test() ->
+  Body = "{\"topicName\":\"topic doesn't exist\", \"data\":\"kek\"}",
+  Request = {string:concat(?CUMKA_HOST, "/producer/newMessage"), [], "application/json", Body},
+  {ok, {{_, AnswerCode, ReasonPhrase}, _, _}} = httpc:request(post, Request, [], []),
+  io:format("~p~n", [ReasonPhrase]),
+  ?assert(AnswerCode == 400),
+  ?assert(ReasonPhrase == "Bad Request").

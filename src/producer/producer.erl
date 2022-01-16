@@ -29,8 +29,11 @@ stop() ->
   gen_server:call(?MODULE, stop).
 
 new_message(#message{topic = TopicName} = Message) ->
-  {ok, Pid} = producer_registrar:get_producer_pid(TopicName),
-  gen_server:call(Pid, {new_message, Message}).
+  case producer_registrar:get_producer_pid(TopicName) of
+    {ok, Pid} ->
+      gen_server:call(Pid, {new_message, Message});
+    {notfound, _} -> {notfound, {TopicName}}
+  end.
 
 init([TopicPid]) ->
   lager:log(debug, self(), "Started producer for topic with pid: ~p~n", [TopicPid]),
@@ -39,7 +42,7 @@ init([TopicPid]) ->
 handle_call({new_message, #message{topic = TopicName, message_payload = MessagePayload}}, _From,
     State = #state{topic_pid = TopicPid, id_counter = IdCounter}) ->
   topic:push_message(TopicPid, #message{id = atomics:add_get(IdCounter, 1, 1), topic = TopicName, message_payload = MessagePayload}),
-  {reply, ok, State};
+  {reply, {ok, {TopicName}}, State};
 
 handle_call(stop, _From, Tab) ->
   {stop, normal, stopped, Tab}.
