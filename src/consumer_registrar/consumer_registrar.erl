@@ -36,7 +36,7 @@ stop() ->
   gen_server:call(?MODULE, stop).
 
 init([]) ->
-{ok, #state{}}.
+  {ok, #state{}}.
 
 handle_call({register_consumer, #{callback_url := Url, topic := Topic, group := Group} = ConsumerDataMap},
     _From,
@@ -45,9 +45,9 @@ handle_call({register_consumer, #{callback_url := Url, topic := Topic, group := 
     %% Consumer does not exists
     badkey ->
       GroupId = case maps:get(Group, Groups, notfound) of
-        notfound -> 0;
-        {ok, Id} -> Id
-      end,
+                  notfound -> 0;
+                  {ok, Id} -> Id
+                end,
       %% Try to connect to topic
       case topic_manager:get_topic_pid(Topic) of
         %% No such topic
@@ -82,10 +82,15 @@ handle_call({register_consumer, #{callback_url := Url, topic := Topic, group := 
       lager:log(debug, self(), "Consumer with URL ~p for topic: ~p", [Url, Topic]),
       {reply, {ok, {already_exists}}, State}
   end;
+handle_call({new_consumer, #{callback_url := Url} = ConsumerDataMap},
+    _From, State) ->
+  {ok, CPID} = consumer:start_link(Url),
+  {reply, {ok, {CPID}}, State};
 handle_call(_Request, _From, State = #state{}) ->
   {reply, ok, State};
 handle_call(stop, _From, Tab) ->
   {stop, normal, stopped, Tab}.
+
 
 handle_cast(_Request, State = #state{}) ->
   {noreply, State}.

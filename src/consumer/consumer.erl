@@ -10,7 +10,7 @@
 
 -include("../include/message.hrl").
 
--export([start_link/2, stop/0]).
+-export([start_link/1, stop/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
   code_change/3]).
 
@@ -19,27 +19,26 @@
 -record(state, {url, message = #message{}}).
 
 %% NOTE Пример отправки сообщения через consumer
-%%{ok, CPID} = consumer:start_link("http://localhost:9000", #message{}),
-%%gen_server:call(CPID, send_message),
-%%gen_server:call(CPID, stop),
+%%{ok, {CPID}} = gen_server:call(consumer_registrar, {new_consumer, #{callback_url => "http://localhost:9000"}}),
+%%gen_server:call(CPID, {send_message, #message{}}),
 
 %%%===================================================================
 %%% Spawning and gen_server implementation
 %%%===================================================================
 
-start_link(Url, Message) ->
+start_link(Url) ->
   io:format("Hello from consumer!~n"),
-  gen_server:start_link(?MODULE, [Url, Message], []).
+  gen_server:start_link(?MODULE, [Url], []).
 
 stop() ->
   gen_server:call(?MODULE, stop).
 
-init([Url, #message{} = Message]) ->
+init([Url]) ->
   lager:log(debug, self(), "Started consumer for url: ~p~n", [Url]),
-  {ok, #state{url = Url, message = Message}}.
+  {ok, #state{url = Url}}.
 
-handle_call(send_message, _From, State = #state{url = Url, message = Message}) ->
-  Body = jsone:encode(Message),
+handle_call({send_message, Message}, _From, State = #state{url = Url}) ->
+  Body = jsone:encode(utils:message_to_json(Message)),
   Request = {Url, [], "application/json", Body},
   lager:log(debug, self(), "Sending request for url ~p with body ~p~n", [Url, Body]),
   case httpc:request(post, Request, [], []) of
