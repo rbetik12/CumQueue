@@ -44,6 +44,8 @@ handle_call({register_consumer, #{callback_url := Url, topic := Topic, group := 
   case maps:get(Url, Consumers, badkey) of
     %% Consumer does not exists
     badkey ->
+      {ok, Pid} = new_consumer(Url),
+      %%{ok, _} = topic_manager:new_consumer(Topic, Pid),
       GroupId = case maps:get(Group, Groups, notfound) of
                   notfound -> 0;
                   {ok, Id} -> Id
@@ -107,3 +109,6 @@ code_change(_OldVsn, State = #state{}, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+new_consumer(Url) ->
+  gen_server:call(consumer_registrar, {new_consumer, #{callback_url => Url}}).

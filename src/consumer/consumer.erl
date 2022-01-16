@@ -66,3 +66,6 @@ code_change(_OldVsn, State = #state{}, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+send_message(Pid, Message) ->
+  gen_server:call(Pid, {send_message, Message}).
