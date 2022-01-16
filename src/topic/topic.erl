@@ -50,25 +50,27 @@ handle_call({push_message, Message}, _From, #state{queue = Queue, queueSize = Qu
     queue = [Message | Queue],
     queueSize = QueueSize + 1
   },
-  lists:foreach(
-    fun(ConsumerPid) ->
-      consumer:send_message(ConsumerPid, Message)
-    end,
-    sets:to_list(Consumers)),
+  spawn_link(?MODULE, broadcast, [Consumers, Message]),
   {reply, {ok, {}}, NewState};
 
-handle_call({new_consumer, ConsumerPid, ReplyType}, _From, #state{consumers = Consumers, queue = Queue} = State) ->
+handle_call({new_consumer, ConsumerPid, ReplyType}, _From, #state{consumers = Consumers, queue = Queue, queueSize = QueueSize} = State) ->
   NewState = State#state{
     consumers = sets:add_element(ConsumerPid, Consumers)
   },
-  case ReplyType of
-    {all} ->
-      Messages = get_all_messages(State);
-    {by_offset, OffsetId} ->
-      Messages = get_messages_by_offset(Queue, OffsetId)
+  if
+    QueueSize =:= 0 ->
+      Messages = [],
+      LastMessageId = undefined;
+    true ->
+      case ReplyType of
+        {all} ->
+          Messages = get_all_messages(State);
+        {by_offset, OffsetId} ->
+          Messages = get_messages_by_offset(Queue, OffsetId)
+      end,
+      LastMessage = lists:nth(1, Queue),
+      LastMessageId = LastMessage#message.id
   end,
-  LastMessage = lists:nth(1, Queue),
-  LastMessageId = LastMessage#message.id,
   {reply, {ok, {Messages, LastMessageId}}, NewState};
 
 handle_call(stop, _From, State) ->
@@ -99,3 +101,10 @@ get_all_messages(Queue) ->
 
 get_messages_by_offset(Queue, OffsetId) ->
   [Message || Message <- Queue, Message#message.id > OffsetId].
+
+broadcast(Consumers, Message) ->
+  lists:foreach(
+    fun(ConsumerPid) ->
+      consumer:send_message(ConsumerPid, Message)
+    end,
+    sets:to_list(Consumers)).
