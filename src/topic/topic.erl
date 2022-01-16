@@ -21,12 +21,12 @@
 %%% API
 %%%===================================================================
 
-% called by producer
+% Returns
 push_message(TopicPid, Message) ->
   %TODO Timeout can be here (also pid inconsistency)
   gen_server:call(TopicPid, {push_message, Message}).
 
-% called by consumer -> topic_manager
+% Returns
 new_consumer(TopicPid, ConsumerPid, ReplyType) ->
   gen_server:call(TopicPid, {new_consumer, ConsumerPid, ReplyType}).
 
@@ -52,7 +52,7 @@ handle_call({push_message, Message}, _From, #state{queue = Queue, queueSize = Qu
   },
   lists:foreach(
     fun(ConsumerPid) ->
-      gen_server:call(ConsumerPid, {new_message})
+      consumer:send_message(ConsumerPid, Message)
     end,
     sets:to_list(Consumers)),
   {reply, {ok, {}}, NewState};
@@ -67,7 +67,8 @@ handle_call({new_consumer, ConsumerPid, ReplyType}, _From, #state{consumers = Co
     {by_offset, OffsetId} ->
       Messages = get_messages_by_offset(Queue, OffsetId)
   end,
-  LastMessageId = lists:nth(1, Queue)#message.id,
+  LastMessage = lists:nth(1, Queue),
+  LastMessageId = LastMessage#message.id,
   {reply, {ok, {Messages, LastMessageId}}, NewState};
 
 handle_call(stop, _From, State) ->
