@@ -23,7 +23,7 @@ get_producer_pid(TopicName) ->
   gen_server:call(producer_registrar, {get_producer_pid, TopicName}).
 
 start(Mode) ->
-  lager:log(info, self(), "Started producer_reg!~n"),
+  lager:log(info, self(), "Started producer_reg in mode: ~p~n", [Mode]),
   gen_server:start_link({local, ?SERVER}, ?MODULE, [Mode], []).
 
 stop() ->
@@ -41,17 +41,23 @@ handle_call({register_producer, TopicName}, _From, #state{producers = Producers,
         {notfound, {_}} ->
           topic_manager:new_topic(TopicName),
           {ok, {TopicPid}} = topic_manager:get_topic_pid(TopicName),
-          start_producer(TopicPid, TopicName, Producers);
+          start_producer(TopicPid, TopicName, Producers, production);
         {ok, {TopicPid}} ->
-          start_producer(TopicPid, TopicName, Producers)
+          start_producer(TopicPid, TopicName, Producers, production)
       end;
     ProducerPid ->
+      %TODO Change answer code for case when producer already exists
       lager:log(debug, self(), "Producer for topic: ~p already exists~n", [TopicName]),
       {reply, {ok, {ProducerPid}}, #state{producers = Producers}}
   end;
 
 handle_call({register_producer, TopicName}, _From, #state{producers = Producers, mode = testing}) ->
-  start_producer(lcnt:pid(node(), 0, 0), TopicName, Producers);
+  case maps:get(TopicName, Producers, badkey) of
+    badkey ->
+      start_producer(lcnt:pid(node(), 0, 0), TopicName, Producers, testing);
+    ProducerPid ->
+      {reply, {ok, {ProducerPid}}, #state{producers = Producers, mode = testing}}
+  end;
 
 handle_call({get_producer_pid, TopicName}, _From, State = #state{producers = Producers}) ->
   case maps:get(TopicName, Producers, badkey) of
@@ -80,8 +86,8 @@ code_change(_OldVsn, State = #state{}, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-start_producer(TopicPid, TopicName, Producers) ->
+start_producer(TopicPid, TopicName, Producers, Mode) ->
   {ok, ProducerPid} = supervisor:start_child(producer_sup, [TopicPid]),
   Producers1 = maps:put(TopicName, ProducerPid, Producers),
   lager:log(debug, self(), "Successfully created producer for topic ~p~n", [TopicName]),
-  {reply, {ok, {ProducerPid}}, #state{producers = Producers1}}.
+  {reply, {ok, {ProducerPid}}, #state{producers = Producers1, mode = Mode}}.

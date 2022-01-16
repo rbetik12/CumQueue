@@ -25,3 +25,15 @@ register_one_producer_test() ->
   {ok, {{_, AnswerCode, ReasonPhrase}, _, _}} = httpc:request(post, Request, [], []),
   ?assert(AnswerCode == 200),
   ?assert(ReasonPhrase == "OK").
+
+register_two_producers_test() ->
+  Body = "{\"topicName\":\"test topic 1\"}",
+  Body1 = "{\"topicName\":\"test topic 2\"}",
+  Request = {string:concat(?CUMKA_HOST, "/producerRegistration"), [], "application/json", Body},
+  Request1 = {string:concat(?CUMKA_HOST, "/producerRegistration"), [], "application/json", Body1},
+  {ok, {{_, AnswerCode, ReasonPhrase}, _, _}} = httpc:request(post, Request, [], []),
+  {ok, {{_, AnswerCode1, ReasonPhrase1}, _, _}} = httpc:request(post, Request1, [], []),
+  ?assert(AnswerCode == 200),
+  ?assert(ReasonPhrase == "OK"),
+  ?assert(AnswerCode == AnswerCode1),
+  ?assert(ReasonPhrase == ReasonPhrase1).
