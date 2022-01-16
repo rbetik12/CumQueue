@@ -43,11 +43,15 @@ handle_call({send_message, Message}, _From, State = #state{url = Url}) ->
   lager:log(debug, self(), "Sending request for url ~p with body ~p~n", [Url, Body]),
   case httpc:request(post, Request, [], []) of
     {error, Error} -> lager:log(debug, self(), "Can't sent requesr to ~p, error: ~p", [Url, Error]);
-    {ok, Result} -> lager:log(debug, self(), "Sended request to ~p, result: ~p", [Url, Result])
+    {ok, Result} ->
+      ok =
+      lager:log(debug, self(), "Sended request to ~p, result: ~p", [Url, Result])
   end,
-  {reply, ok, State};
-handle_call(_Request, _From, State = #state{}) ->
-  {reply, ok, State};
+  case consumer_registrar:inc_group(Message#message.id, Url) of
+    cannot_find_group -> lager:log(debug, self(), "Cannot inc group id with url ~p", [Url]);
+    ok -> lager:log(debug, self(), "Incremented group id with url ~p", [Url])
+  end,
+  {reply, {ok, {}}, State};
 handle_call(stop, _From, Tab) ->
   {stop, normal, stopped, Tab}.
 

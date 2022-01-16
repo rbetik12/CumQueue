@@ -16,11 +16,13 @@
   terminate/2,
   code_change/3,
   register_consumer/1,
-  new_consumer/2]).
+  new_consumer/3,
+  inc_group/2]).
 
 -define(SERVER, ?MODULE).
 
 -record(state, {consumers = maps:new(), groups = maps:new()}).
+-record(consumer_state, {topic, group}).
 
 %%%===================================================================
 %%% Spawning and gen_server implementation
@@ -39,46 +41,64 @@ stop() ->
 init([]) ->
   {ok, #state{}}.
 
-handle_call({register_consumer, #{callback_url := Url, topic := Topic, group := Group} = ConsumerDataMap},
+handle_call({inc_group, #{new_msg_id := NewMsgId, url := Url}},
+    _From, State = #state{consumers = Consumers, groups = Groups}) ->
+  case maps:get(Url, Consumers, notfound) of
+    notfound ->
+      {reply, cannot_find_group, State};
+    ConsumerState ->
+      {reply, ok, State#state{
+      groups = Groups#{ConsumerState#consumer_state.group := NewMsgId}
+      }}
+  end;
+handle_call({register_consumer, #{callback_url := Url, topic := Topic, group := Group}},
     _From,
     State = #state{consumers = Consumers, groups = Groups}) ->
   case maps:get(Url, Consumers, badkey) of
     %% Consumer does not exists
     badkey ->
-      GroupId = case maps:get(Group, Groups, notfound) of
-                  notfound -> 0;
-                  {ok, Id} -> Id
-                end,
       %% Try to connect to topic
-      case topic_manager:get_topic_pid(Topic) of
-        %% No such topic
-        {notfound, _} ->
-          topic_manager:new_topic(Topic),
-          {ok, _} = new_consumer(Url, Topic),
-          {reply, {ok, {empty_topic}}, State#state{
-            consumers = Consumers#{Url => Topic}
-          }};
-        %% Found topic
+      case topic_manager:new_topic(Topic) of
+        %% Created topic
         {ok, _} ->
+          case new_consumer(Url, Topic, {all}) of
+            {ok, {Messages, LastMsgId}} ->
+              {reply, {ok, {Messages}}, State#state{
+                consumers = Consumers#{Url => #consumer_state{topic = Topic, group = Group}},
+                groups = Groups#{Group => LastMsgId}}
+              };
+            {notfound, {TopicName}} ->
+              {reply, {notfound, {TopicName}}, State}
+          end;
+        %% Found exists topic
+        {already_exists, _} ->
+          GroupId = case maps:get(Group, Groups, notfound) of
+                      notfound -> 0;
+                      Id -> Id
+                    end,
           case GroupId of
             %% Return all data from topic
             0 ->
-              %%Messages = topic_manager:get_all(Topic),
-              {Messages, MsgId} = not_implemented, not_implemented,
-              {ok, _} = new_consumer(Url, Topic),
-              {reply, {ok, {Messages}}, State#state{
-                consumers = Consumers#{Url => Topic},
-                groups = Groups#{Group => MsgId}}
-              };
+              case new_consumer(Url, Topic, {all}) of
+                {ok, {Messages, LastMsgId}} ->
+                  {reply, {ok, {Messages}}, State#state{
+                    consumers = Consumers#{Url => #consumer_state{topic = Topic, group = Group}},
+                    groups = Groups#{Group => LastMsgId}}
+                  };
+                {notfound, {TopicName}} ->
+                  {reply, {notfound, {TopicName}}, State}
+              end;
             %% Return data after GroupId from topic
-            GroupId ->
-              %%Messages = topic_manager:get_from(Topic, GroupId),
-              {Messages, MsgId} = not_implemented, not_implemented,
-              {ok, _} = new_consumer(Url, Topic),
-              {reply, {ok, {Messages}}, State#state{
-                consumers = Consumers#{Url => Topic},
-                groups = Groups#{Group := MsgId}}
-              }
+            LastGroupId ->
+              case new_consumer(Url, Topic, {by_offset, LastGroupId}) of
+                {ok, {Messages, LastMsgId}} ->
+                  {reply, {ok, {Messages}}, State#state{
+                    consumers = Consumers#{Url => #consumer_state{topic = Topic, group = Group}},
+                    groups = Groups#{Group := LastMsgId}}
+                  };
+                {notfound, {TopicName}} ->
+                  {reply, {notfound, {TopicName}}, State}
+              end
           end
       end;
     %% Consumer already exists
@@ -86,11 +106,8 @@ handle_call({register_consumer, #{callback_url := Url, topic := Topic, group := 
       lager:log(debug, self(), "Consumer with URL ~p for topic: ~p", [Url, Topic]),
       {reply, {ok, {already_exists}}, State}
   end;
-handle_call(_Request, _From, State = #state{}) ->
-  lager:log(info, self(),"spawning new consumer"),
-  {reply, ok, State};
 handle_call(stop, _From, Tab) ->
-  lager:log(info, self(),"spawning new consumer"),
+  lager:log(info, self(),"stop"),
   {stop, normal, stopped, Tab}.
 
 
@@ -110,8 +127,28 @@ code_change(_OldVsn, State = #state{}, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-new_consumer(Url, Topic) ->
+new_consumer(Url, Topic, ReplyType) ->
   lager:log(info, self(),"spawning new consumer"),
   {ok, Pid} = consumer:start_link(Url),
   lager:log(info, self(),"spawned new consumer"),
-  topic_manager:new_consumer(Topic, Pid).
+  topic_manager:new_consumer(Topic, Pid, ReplyType).
+
+new_consumer(Url, Topic, ReplyType, State, Group) ->
+  lager:log(info, self(),"spawning new consumer"),
+  {ok, Pid} = consumer:start_link(Url),
+  lager:log(info, self(),"spawned new consumer"),
+  Consumers = State#state.consumers,
+  Groups = State#state.groups,
+  case topic_manager:new_consumer(Topic, Pid, ReplyType) of
+    {ok, {Messages, LastMsgId}} ->
+      {reply, {ok, {Messages}}, State#state{
+        consumers = Consumers#{Url => #consumer_state{topic = Topic, group = Group}},
+        groups = Groups#{Group := LastMsgId}}
+      };
+    {notfound, {TopicName}} ->
+      {reply, {notfound, {TopicName}}, State}
+  end.
+
+inc_group(NewMsgId, Url) ->
+  gen_server:call(?MODULE, {inc_group, #{new_msg_id => NewMsgId, url => Url}}),
+  lager:log(info, self(), "new GroupId: ~p in Group with url: ~p", [NewMsgId, Url]).
