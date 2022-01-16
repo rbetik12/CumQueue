@@ -15,7 +15,8 @@
   handle_info/2,
   terminate/2,
   code_change/3,
-  register_consumer/1]).
+  register_consumer/1,
+  new_consumer/1]).
 
 -define(SERVER, ?MODULE).
 
