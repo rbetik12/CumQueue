@@ -2,13 +2,13 @@
 
 -behaviour(gen_server).
 
--export([start/0, stop/0, register_producer/1, get_producer_pid/1]).
+-export([start/1, stop/0, register_producer/1, get_producer_pid/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
   code_change/3]).
 
 -define(SERVER, ?MODULE).
 
--record(state, {producers = maps:new()}).
+-record(state, {producers = maps:new(), mode = production}).
 
 %%%===================================================================
 %%% Spawning and gen_server implementation
@@ -22,17 +22,17 @@ get_producer_pid(TopicName) ->
   %TODO Timeout can be get here
   gen_server:call(producer_registrar, {get_producer_pid, TopicName}).
 
-start() ->
+start(Mode) ->
   lager:log(info, self(), "Started producer_reg!~n"),
-  gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+  gen_server:start_link({local, ?SERVER}, ?MODULE, [Mode], []).
 
 stop() ->
   gen_server:call(?MODULE, stop).
 
-init([]) ->
-  {ok, #state{}}.
+init([Mode]) ->
+  {ok, #state{mode = Mode}}.
 
-handle_call({register_producer, TopicName}, _From, #state{producers = Producers}) ->
+handle_call({register_producer, TopicName}, _From, #state{producers = Producers, mode = production}) ->
   lager:log(debug, self(), "Registring producer with name: ~p...~n", [TopicName]),
   %TODO We can do that in separate thread
   case maps:get(TopicName, Producers, badkey) of
@@ -49,6 +49,9 @@ handle_call({register_producer, TopicName}, _From, #state{producers = Producers}
       lager:log(debug, self(), "Producer for topic: ~p already exists~n", [TopicName]),
       {reply, {ok, {ProducerPid}}, #state{producers = Producers}}
   end;
+
+handle_call({register_producer, TopicName}, _From, #state{producers = Producers, mode = testing}) ->
+  start_producer(lcnt:pid(node(), 0, 0), TopicName, Producers);
 
 handle_call({get_producer_pid, TopicName}, _From, State = #state{producers = Producers}) ->
   case maps:get(TopicName, Producers, badkey) of

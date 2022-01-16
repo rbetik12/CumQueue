@@ -4,12 +4,8 @@
 %%% @doc
 %%%
 %%% @end
-%%% Created : 12. Jan 2022 23:09
+%%% Created : 16. Jan 2022 03:05
 %%%-------------------------------------------------------------------
--module(simple_tests).
 -author("prikotav").
 
--include_lib("eunit/include/eunit.hrl").
-
-simple_test() ->
-  ?assert(true).
+-define(CUMKA_HOST, "http://localhost:8080").

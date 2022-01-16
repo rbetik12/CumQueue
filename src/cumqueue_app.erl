@@ -4,21 +4,32 @@
 
 -export([stop/1, start/2]).
 
+% Exported only for testing
+-export([start_http_server/1, start_and_setup_deps/0]).
+
 start(_, _) ->
+    start_and_setup_deps(),
+    start_modules(),
+
+    start_http_server(8080).
+
+stop(_State) ->
+    ok = cowboy:stop_listener(http).
+
+start_and_setup_deps() ->
     ok = application:start(cowlib),
     ok = application:start(ranch),
     ok = application:start(cowboy),
     lager:start(),
-    lager:set_loglevel(lager_console_backend, debug),
+    lager:set_loglevel(lager_console_backend, debug).
 
-    producer_registrar_sup:start(),
+start_modules() ->
+    producer_registrar_sup:start(production),
     producer_sup:start(),
     consumer_registrar_sup:start(),
     consumer_sup:start(),
     topic_sup:start(),
-    topic_manager_sup:start(),
-
-    start_http_server(8080).
+    topic_manager_sup:start().
 
 start_http_server(Port) ->
     Dispatch = cowboy_router:compile([
@@ -33,6 +44,3 @@ start_http_server(Port) ->
         env => #{dispatch => Dispatch}
     }),
     cumqueue_sup:start().
-
-stop(_State) ->
-    ok = cowboy:stop_listener(http).
