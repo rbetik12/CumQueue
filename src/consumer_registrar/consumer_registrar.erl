@@ -16,7 +16,7 @@
   terminate/2,
   code_change/3,
   register_consumer/1,
-  new_consumer/1]).
+  new_consumer/2]).
 
 -define(SERVER, ?MODULE).
 
@@ -45,8 +45,6 @@ handle_call({register_consumer, #{callback_url := Url, topic := Topic, group := 
   case maps:get(Url, Consumers, badkey) of
     %% Consumer does not exists
     badkey ->
-      {ok, Pid} = new_consumer(Url),
-      %%{ok, _} = topic_manager:new_consumer(Topic, Pid),
       GroupId = case maps:get(Group, Groups, notfound) of
                   notfound -> 0;
                   {ok, Id} -> Id
@@ -56,6 +54,7 @@ handle_call({register_consumer, #{callback_url := Url, topic := Topic, group := 
         %% No such topic
         {notfound, _} ->
           topic_manager:new_topic(Topic),
+          {ok, _} = new_consumer(Url, Topic),
           {reply, {ok, {empty_topic}}, State#state{
             consumers = Consumers#{Url => Topic}
           }};
@@ -66,6 +65,7 @@ handle_call({register_consumer, #{callback_url := Url, topic := Topic, group := 
             0 ->
               %%Messages = topic_manager:get_all(Topic),
               {Messages, MsgId} = not_implemented, not_implemented,
+              {ok, _} = new_consumer(Url, Topic),
               {reply, {ok, {Messages}}, State#state{
                 consumers = Consumers#{Url => Topic},
                 groups = Groups#{Group => MsgId}}
@@ -74,6 +74,7 @@ handle_call({register_consumer, #{callback_url := Url, topic := Topic, group := 
             GroupId ->
               %%Messages = topic_manager:get_from(Topic, GroupId),
               {Messages, MsgId} = not_implemented, not_implemented,
+              {ok, _} = new_consumer(Url, Topic),
               {reply, {ok, {Messages}}, State#state{
                 consumers = Consumers#{Url => Topic},
                 groups = Groups#{Group := MsgId}}
@@ -85,13 +86,11 @@ handle_call({register_consumer, #{callback_url := Url, topic := Topic, group := 
       lager:log(debug, self(), "Consumer with URL ~p for topic: ~p", [Url, Topic]),
       {reply, {ok, {already_exists}}, State}
   end;
-handle_call({new_consumer, #{callback_url := Url} = ConsumerDataMap},
-    _From, State) ->
-  {ok, CPID} = consumer:start_link(Url),
-  {reply, {ok, {CPID}}, State};
 handle_call(_Request, _From, State = #state{}) ->
+  lager:log(info, self(),"spawning new consumer"),
   {reply, ok, State};
 handle_call(stop, _From, Tab) ->
+  lager:log(info, self(),"spawning new consumer"),
   {stop, normal, stopped, Tab}.
 
 
@@ -111,5 +110,8 @@ code_change(_OldVsn, State = #state{}, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-new_consumer(Url) ->
-  gen_server:call(consumer_registrar, {new_consumer, #{callback_url => Url}}).
+new_consumer(Url, Topic) ->
+  lager:log(info, self(),"spawning new consumer"),
+  {ok, Pid} = consumer:start_link(Url),
+  lager:log(info, self(),"spawned new consumer"),
+  topic_manager:new_consumer(Topic, Pid).
