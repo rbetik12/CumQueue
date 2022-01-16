@@ -16,7 +16,7 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {url, message = #message{}}).
+-record(state, {url}).
 
 %% NOTE Пример отправки сообщения через consumer
 %%{ok, {CPID}} = gen_server:call(consumer_registrar, {new_consumer, #{callback_url => "http://localhost:9000"}}),
