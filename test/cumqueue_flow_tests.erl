@@ -23,6 +23,11 @@ register_producer(TopicName) ->
   Request = {string:concat(?CUMKA_HOST, "/producerRegistration"), [], "application/json", Body},
   {ok, {{_, 200, _}, _, _}} = httpc:request(post, Request, [], []).
 
+register_consumer(TopicName) ->
+  Body = lists:concat(["{\"topic\":\"", TopicName, "\", \"url\": \"http://localhost:9000\", \"group\":0}"]),
+  Request = {string:concat(?CUMKA_HOST, "/consumerRegistration"), [], "application/json", Body},
+  {ok, {{_, 200, _}, _, _}} = httpc:request(post, Request, [], []).
+
 register_one_producer_test() ->
   setup_test_env(),
   Body = "{\"topicName\":\"test topic 1\"}",
@@ -57,3 +62,38 @@ send_message_to_producer_normal_test() ->
   {ok, {{_, AnswerCode, ReasonPhrase}, _, _}} = httpc:request(post, Request, [], []),
   ?assert(AnswerCode == 200),
   ?assert(ReasonPhrase == "OK").
+
+get_consumer_message(Socket) ->
+  net_utils:skip_http_header(Socket),
+  inet:setopts(Socket, [{packet, raw}]),
+  {ok, MessageBody} = gen_tcp:recv(Socket, 0),
+  MessageJson = jsone:decode(list_to_binary(MessageBody)),
+  {maps:get(<<"topic">>, MessageJson), binary_to_list(maps:get(<<"message_payload">>, MessageJson))}.
+
+accept_message(ListenSocket) ->
+  {ok, Socket} = gen_tcp:accept(ListenSocket),
+  MessageData = get_consumer_message(Socket),
+  net_utils:teardown_socket(Socket),
+  MessageData.
+
+send_message_full_flow_test() ->
+  ExpectedTopic = "full flow test",
+  ExpectedData = "some data",
+  Body = io_lib:format("{
+      \"topicName\":\"~s\",
+      \"data\":\"~s\"
+    }", [ExpectedTopic, ExpectedData]),
+  Request = {string:concat(?CUMKA_HOST, "/producer/newMessage"), [], "application/json", list_to_binary(Body)},
+
+  register_producer(ExpectedTopic),
+  register_consumer(ExpectedTopic),
+
+  {ok, ListenSocket} = net_utils:setup_socket(9000, false, http, true),
+  {ok, {{_, 200, "OK"}, _, _}} = httpc:request(post, Request, [], []),
+  {Topic, Payload} = accept_message(ListenSocket),
+  net_utils:teardown_socket(ListenSocket),
+
+  ?assert(Topic == ExpectedTopic),
+  ?assert(Payload == ExpectedData).
+
+
