@@ -8,7 +8,8 @@
 
 -behaviour(gen_server).
 
--export([start/1, stop/0, get_messages/2, push_message/2, new_consumer/2]).
+-export([start/1, stop/0]).
+-export([get_all_messages/1, get_messages_by_offset/2, push_message/2, new_consumer/3]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
   code_change/3]).
 
@@ -20,15 +21,14 @@
 %%% API
 %%%===================================================================
 
-get_messages(TopicPid, Amount) ->
-  gen_server:call(TopicPid, {get_messages, Amount}).
-
+% called by producer
 push_message(TopicPid, Message) ->
   %TODO Timeout can be here (also pid inconsistency)
   gen_server:call(TopicPid, {push_message, Message}).
 
-new_consumer(TopicPid, ConsumerPid) ->
-  gen_server:call(TopicPid, {new_consumer, ConsumerPid}).
+% called by consumer -> topic_manager
+new_consumer(TopicPid, ConsumerPid, ReplyType) ->
+  gen_server:call(TopicPid, {new_consumer, ConsumerPid, ReplyType}).
 
 %%%===================================================================
 %%% Spawning and gen_server implementation
@@ -45,10 +45,6 @@ init([Name]) ->
   {ok, #state{name = Name, consumers = sets:new()}}.
 
 
-handle_call({get_messages, MessageAmount}, _From, #state{queue = Queue} = State) ->
-  Messages = nth_head(MessageAmount, Queue),
-  {reply, {ok, {Messages}}, State};
-
 handle_call({push_message, Message}, _From, #state{queue = Queue, queueSize = QueueSize, consumers = Consumers} = State) ->
   NewState = State#state{
     queue = [Message | Queue],
@@ -61,11 +57,18 @@ handle_call({push_message, Message}, _From, #state{queue = Queue, queueSize = Qu
     sets:to_list(Consumers)),
   {reply, {ok, {}}, NewState};
 
-handle_call({new_consumer, ConsumerPid}, _From, #state{consumers = Consumers} = State) ->
+handle_call({new_consumer, ConsumerPid, ReplyType}, _From, #state{consumers = Consumers, queue = Queue} = State) ->
   NewState = State#state{
     consumers = sets:add_element(ConsumerPid, Consumers)
   },
-  {reply, {ok, {}}, NewState};
+  case ReplyType of
+    {all} ->
+      Messages = get_all_messages(State);
+    {by_offset, OffsetId} ->
+      Messages = get_messages_by_offset(Queue, OffsetId)
+  end,
+  LastMessageId = lists:nth(1, Queue),
+  {reply, {ok, {Messages, LastMessageId}}, NewState};
 
 handle_call(stop, _From, State) ->
   {stop, normal, stopped, State}.
@@ -90,10 +93,8 @@ code_change(_OldVsn, #state{} = State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-nth_head(Amount, List) ->
-  nth_head(Amount, List, []).
+get_all_messages(Queue) ->
+  Queue.
 
-nth_head(0, _, Res) ->
-  Res;
-nth_head(Amount, [Elem | List], Res) ->
-  nth_head(Amount - 1, List, [Elem | Res]).
+get_messages_by_offset(Queue, OffsetId) ->
+  [Message || Message <- Queue, Message#message.id > OffsetId].

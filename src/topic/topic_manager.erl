@@ -8,7 +8,8 @@
 
 -behaviour(gen_server).
 
--export([start/0, stop/0, new_topic/1, new_consumer/2, get_topic_pid/1]).
+-export([start/0, stop/0]).
+-export([new_topic/1, new_consumer/3]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
     code_change/3]).
 
@@ -21,11 +22,9 @@
 new_topic(Name) ->
     gen_server:call(?MODULE, {new_topic, Name}).
 
-new_consumer(TopicName, ConsumerPid) ->
-    gen_server:call(?MODULE, {new_consumer, TopicName, ConsumerPid}).
-
-get_topic_pid(Name) ->
-    gen_server:call(?MODULE, {get_topic_pid, Name}).
+% ReplyType = {all} | {by_offset, term()}
+new_consumer(TopicName, ConsumerPid, ReplyType) ->
+    gen_server:call(?MODULE, {new_consumer, TopicName, ConsumerPid, ReplyType}).
 
 %%%===================================================================
 %%% Spawning and gen_server implementation
@@ -51,22 +50,14 @@ handle_call({new_topic, TopicName}, _From, #state{topics = Topics} = State) ->
             {reply, {already_exists, {TopicPid}}, State}
     end;
 
-handle_call({new_consumer, TopicName, ConsumerPid}, _From, #state{topics = Topics} = State) ->
+handle_call({new_consumer, TopicName, ConsumerPid, ReplyType}, _From, #state{topics = Topics} = State) ->
     case maps:find(TopicName, Topics) of
         error ->
             Reply = {notfound, {TopicName}};
         {ok, TopicPid} ->
-            Reply = topic:new_consumer(TopicPid, ConsumerPid)
+            Reply = topic:new_consumer(TopicPid, ConsumerPid, ReplyType)
     end,
     {reply, Reply, State};
-
-handle_call({get_topic_pid, TopicName}, _From, #state{topics = Topics} = State) ->
-    case maps:find(TopicName, Topics) of
-        error ->
-            {reply, {notfound, {TopicName}}, State};
-        {ok, TopicPid} ->
-            {reply, {ok, {TopicPid}}, State}
-    end;
 
 handle_call(stop, _From, State) ->
     {stop, normal, stopped, State}.
