@@ -40,7 +40,7 @@ register_consumer(Req, State) ->
   }) of
     {ok, {empty_topic}} -> Body = <<"{\"status\": \"OK\"}">>;
     {ok, {already_exists}} -> Body = <<"{\"status\": \"already exists\"}">>;
-    {ok, {Messages}} -> Body = jsone:encode(Messages);
+    {ok, {Messages}} -> Body = jsone:encode(utils:messages_to_json(Messages));
     _ -> Body = <<"{\"status\": \"Cannot register consumer\"}">>
   end,
   Req2 = cowboy_req:set_resp_headers(#{
