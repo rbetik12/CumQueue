@@ -22,6 +22,7 @@ message_to_json(Message) ->
   },
   Res.
 
+messages_to_json(Message) when is_record(Message, message) -> message_to_json(Message);
 messages_to_json(Messages) ->
   messages_to_json(Messages, []).
 

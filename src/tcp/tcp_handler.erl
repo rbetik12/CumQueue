@@ -38,9 +38,17 @@ tcp_loop(LSock) ->
 tcp_inner_loop(LSock, Sock, Bs) ->
   case gen_tcp:recv(Sock, 0) of
     {ok, B} ->
-      tcp_inner_loop(LSock, Sock, [B|Bs]);
-    _ ->
-      handle_data(Bs),
+      case string:find(B, "\n") of
+        nomatch -> tcp_inner_loop(LSock, Sock, [B|Bs]);
+        _ ->
+          RespBody = handle_data(B),
+          gen_tcp:send(Sock, RespBody),
+          ok = gen_tcp:close(Sock),
+          tcp_loop(LSock)
+      end;
+    {error, _} ->
+      RespBody = handle_data(Bs),
+      gen_tcp:send(Sock, RespBody),
       ok = gen_tcp:close(Sock),
       tcp_loop(LSock)
   end.
@@ -60,8 +68,8 @@ handle_data(Data) ->
 
 new_message(JsonData) ->
   case producer:new_message(#message{
-      topic = binary_to_list(maps:get(<<"topic">>, JsonData)),
-      message_payload = maps:get(<<"data">>, JsonData)}) of
+    topic = binary_to_list(maps:get(<<"topic">>, JsonData)),
+    message_payload = maps:get(<<"data">>, JsonData)}) of
     {ok, _} -> <<"{\"status\": \"OK\"}">>;
     {notfound, _} -> <<"{\"status\": \"Not found\"}">>;
     _ -> <<"{\"status\": \"Registration producer error\"}">>
