@@ -12,7 +12,8 @@ start(_, _) ->
     start_and_setup_deps(),
     start_modules(),
 
-    start_http_server(8080).
+    start_http_server(8080),
+    ok = tcp_handler_sup:start().
 
 stop(_State) ->
     stop_deps().
