@@ -35,7 +35,7 @@ register_consumer(Req, State) ->
   JsonData = jsone:decode(Data),
   case consumer_registrar:register_consumer(#{
     callback_url => maps:get(<<"url">>, JsonData),
-    topic => maps:get(<<"topic">>, JsonData),
+    topic => binary_to_list(maps:get(<<"topic">>, JsonData)),
     group => maps:get(<<"group">>, JsonData)
   }) of
     {ok, {empty_topic}} -> Body = <<"{\"status\": \"OK\"}">>;
