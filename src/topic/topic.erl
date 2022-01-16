@@ -9,7 +9,7 @@
 -behaviour(gen_server).
 
 -export([start/1, stop/0]).
--export([get_all_messages/1, get_messages_by_offset/2, push_message/2, new_consumer/3]).
+-export([push_message/2, new_consumer/3, broadcast/2]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
   code_change/3]).
 
