@@ -67,7 +67,7 @@ handle_call({new_consumer, ConsumerPid, ReplyType}, _From, #state{consumers = Co
     {by_offset, OffsetId} ->
       Messages = get_messages_by_offset(Queue, OffsetId)
   end,
-  LastMessageId = lists:nth(1, Queue),
+  LastMessageId = lists:nth(1, Queue)#message.id,
   {reply, {ok, {Messages, LastMessageId}}, NewState};
 
 handle_call(stop, _From, State) ->
