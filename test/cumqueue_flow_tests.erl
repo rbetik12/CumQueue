@@ -148,8 +148,8 @@ send_multiple_messages_than_subscribe_test() ->
   ?assert(Data2 == ExpectedData),
   ?assert(Data3 == ExpectedData).
 
-%TODO fix
-one_consumer_subscribes_on_two_topics_test_ignore() ->
+one_consumer_subscribes_on_two_topics_test() ->
+  setup_test_env(),
   ExpectedTopic1 = "cool topic 1",
   ExpectedTopic2 = "cool topic 2",
   ExpectedData = "some data",
@@ -168,15 +168,19 @@ one_consumer_subscribes_on_two_topics_test_ignore() ->
 
   register_producer(ExpectedTopic1),
   register_producer(ExpectedTopic2),
+  register_consumer(ExpectedTopic1, "localhost", 9006, 9006),
+  {ok, {{_, 200, "OK"}, _, ResponseBody}} = register_consumer(ExpectedTopic2, "localhost", 9006, 9006),
+  Json = jsone:decode(list_to_binary(ResponseBody)),
+  Status = binary_to_list(maps:get(<<"status">>, Json)),
   {ok, {{_, 200, "OK"}, _, _}} = httpc:request(post, Request1, [], []),
   {ok, {{_, 200, "OK"}, _, _}} = httpc:request(post, Request2, [], []),
-  register_consumer(ExpectedTopic1, "localhost", 9006, 9006),
-  register_consumer(ExpectedTopic2, "localhost", 9006, 9006),
 
   {Topic1, Data1} = accept_message(ListenSocket),
-  {Topic2, Data2} = accept_message(ListenSocket),
-  lager:log(debug, "~p~n", [[Topic1, Data1, Topic2, Data2]]),
-  ?assert(false).
+  lager:log(debug, "~p~n", [[Topic1, Data1]]),
+
+  ?assert(Topic1 == ExpectedTopic1),
+  ?assert(Data1 == ExpectedData),
+  ?assert(Status == "already exists").
 
 % Test utility functions
 
