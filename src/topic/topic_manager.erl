@@ -43,7 +43,14 @@ stop() ->
     gen_server:call(?MODULE, stop).
 
 init([]) ->
-    {ok, #state{}}.
+    InitState = #state{},
+    case utils:is_dets_exists(topic_manager, "topic_manager.ets", set) of
+        true ->
+            State = restore_state(topic_manager, InitState);
+        false ->
+            State = InitState
+    end,
+    {ok, State}.
 
 % new topic entity adds/updates in topic:init
 handle_call({new_topic, TopicName}, _From, #state{topics = Topics} = State) ->
@@ -69,6 +76,7 @@ handle_call(stop, _From, State) ->
 
 handle_cast({update_topic_pid, TopicName, NewTopicPid}, #state{topics = Topics} = State) ->
     NewState = State#state{topics = maps:put(TopicName, NewTopicPid, Topics)},
+    dets:insert(topic_manager, {TopicName, NewTopicPid}),
     {noreply, NewState}.
 
 handle_info(_Info, #state{} = State) ->
@@ -83,3 +91,8 @@ code_change(_OldVsn, #state{} = State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+restore_state(TabName, InitState) ->
+    InitState#state{
+        topics = maps:from_list(dets:match_object(TabName, {'$0', '$1'}))
+    }.
