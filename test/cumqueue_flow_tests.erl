@@ -96,9 +96,7 @@ multiple_consumers_test() ->
   ?assert(Data1 == ExpectedData),
   ?assert(Data2 == ExpectedData).
 
-
-%%TODO figure out what to do with that test
-consumer_subscribe_twice_test_ignore() ->
+consumer_subscribe_twice_test() ->
   ExpectedTopic = "subscribe twice",
   ExpectedData = "some data",
   ConsumerPort = 9004,
@@ -113,12 +111,14 @@ consumer_subscribe_twice_test_ignore() ->
   register_consumer(ExpectedTopic, "localhost", ConsumerPort, ConsumerPort),
   {ok, {{_, 200, "OK"}, _, _}} = httpc:request(post, Request, [], []),
 
-  {Topic1, Data1} = accept_message(ListenSocket),
+  {Topic, Data} = accept_message(ListenSocket),
 
-  register_consumer(ExpectedTopic, "localhost", ConsumerPort, ConsumerPort),
-  {Topic1, Data1} = accept_message(ListenSocket),
-
-  ?assert(false).
+  {ok, {{_, 200, _}, _, ResponseBody}} = register_consumer(ExpectedTopic, "localhost", ConsumerPort, ConsumerPort),
+  Json = jsone:decode(list_to_binary(ResponseBody)),
+  Status = binary_to_list(maps:get(<<"status">>, Json)),
+  ?assert(Topic == ExpectedTopic),
+  ?assert(Data == ExpectedData),
+  ?assert(Status == "already exists").
 
 send_multiple_messages_than_subscribe_test() ->
   ExpectedTopic = "send_multiple_messages_than_subscribe",
